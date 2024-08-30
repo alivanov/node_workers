@@ -1,12 +1,12 @@
-const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
-const path = require('path');
-const { readFilesFromDirectory } = require('./utils');
-const { processFile } = require('./fileProcessor');
+import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
+import path from 'path';
+import { readFilesFromDirectory } from './utils';
+import { processFile } from './fileProcessor';
 
 const MIN_WORD_LENGTH = 5;
 
 if (isMainThread) {
-  async function main(directory) {
+  async function main(directory: string): Promise<void> {
     try {
       console.log(`Reading files from directory: ${directory}`);
       const files = await readFilesFromDirectory(directory);
@@ -24,22 +24,22 @@ if (isMainThread) {
         return new Worker(__filename, { workerData: { files: chunk, minLength: MIN_WORD_LENGTH } });
       });
 
-      let wordCounts = {};
+      const wordCounts: { [key: string]: number } = {};
 
-      let workerPromises = workers.map(worker => new Promise((resolve, reject) => {
-        worker.on('message', (counts) => {
+      const workerPromises = workers.map(worker => new Promise<void>((resolve, reject) => {
+        worker.on('message', (counts: { [key: string]: number }) => {
           console.log('Received counts from worker:', counts);
           for (const [word, count] of Object.entries(counts)) {
             wordCounts[word] = (wordCounts[word] || 0) + count;
           }
         });
 
-        worker.on('error', (error) => {
+        worker.on('error', (error: Error) => {
           console.error(`Worker error: ${error}`);
           reject(error);
         });
 
-        worker.on('exit', (code) => {
+        worker.on('exit', (code: number) => {
           console.log(`Worker exited with code: ${code}`);
           if (code !== 0) {
             reject(new Error(`Worker stopped with exit code ${code}`));
@@ -61,31 +61,38 @@ if (isMainThread) {
     }
   }
 
-  function chunkArray(array, size) {
-    const result = [];
+  function chunkArray<T>(array: T[], size: number): T[][] {
+    const result: T[][] = [];
     for (let i = 0; i < array.length; i += size) {
       result.push(array.slice(i, i + size));
     }
     return result;
   }
 
-  main(path.resolve(__dirname, 'text_files_directory'));
+  main(path.resolve(__dirname, '../text_files_directory'));
 } else {
-  const { files, minLength } = workerData;
+  const { files, minLength } = workerData as { files: string[], minLength: number };
 
   (async () => {
     try {
-        let allWords = [];
-        for (const file of files) {
-            const words = await processFile(file);
-            allWords = allWords.concat(words);
+      let allWords: string[] = [];
+      console.log(`Worker processing files: ${files}`);
+      for (const file of files) {
+        const words = await processFile(file);
+        allWords = allWords.concat(words);
+      }
+
+      const wordCounts: { [key: string]: number } = {};
+      allWords.forEach(word => {
+        if (word.length >= minLength) {
+          wordCounts[word] = (wordCounts[word] || 0) + 1;
         }
-        
-        const worker = new Worker(path.resolve(__dirname, 'wordCounter.js'));
-        worker.postMessage({ words: allWords, minLength });
-        worker.on('message', (counts) => {
-            parentPort.postMessage(counts);
-        });
+      });
+
+      console.log(`Worker sending counts back: ${JSON.stringify(wordCounts)}`);
+      parentPort?.postMessage(wordCounts);
+      console.log('Worker completed processing.');
+      parentPort?.close();
 
     } catch (error) {
       console.error('Worker error:', error);
