@@ -1,7 +1,6 @@
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 import path from 'path';
 import { readFilesFromDirectory } from './utils';
-import { processFile } from './fileProcessor';
 
 const MIN_WORD_LENGTH = 5;
 
@@ -74,28 +73,16 @@ if (isMainThread) {
   const { files, minLength } = workerData as { files: string[], minLength: number };
 
   (async () => {
-    try {
-      let allWords: string[] = [];
-      console.log(`Worker processing files: ${files}`);
-      for (const file of files) {
-        const words = await processFile(file);
-        allWords = allWords.concat(words);
+      try {
+        const worker = new Worker(path.resolve(__dirname, 'wordCounter'));
+        
+        worker.postMessage({ files, minLength });
+
+        worker.on('message', (counts) => {
+          parentPort?.postMessage(counts);
+        });
+      } catch (error) {
+        console.error('Worker error:', error);
       }
-
-      const wordCounts: { [key: string]: number } = {};
-      allWords.forEach(word => {
-        if (word.length >= minLength) {
-          wordCounts[word] = (wordCounts[word] || 0) + 1;
-        }
-      });
-
-      console.log(`Worker sending counts back: ${JSON.stringify(wordCounts)}`);
-      parentPort?.postMessage(wordCounts);
-      console.log('Worker completed processing.');
-      parentPort?.close();
-
-    } catch (error) {
-      console.error('Worker error:', error);
-    }
   })();
 }

@@ -5,7 +5,6 @@ interface WorkerData {
   minLength: number;
 }
 
-// Получение данных от основного потока
 parentPort?.on('message', async ({ files, minLength }: WorkerData) => {
   try {
     const { processFile } = await import('./fileProcessor');
