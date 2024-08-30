@@ -1,0 +1,16 @@
+{
+  "name": "words_counter",
+  "version": "1.0.0",
+  "description": "A Node.js application to count the most frequently used words in text files from a specified directory, with multithreading support.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "ivanov@intspirit.com",
+  "license": "ISC",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
